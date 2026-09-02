@@ -30,8 +30,6 @@ const fileFilter = (req, file, cb) => {
     // Check if it's an image
     if (validFileTypes.image.includes(mimetype)) {
         console.log(`✅ Detected as IMAGE`);
-        // Override fieldname to ensure it goes to correct field
-        file.fieldname = "image";
         return cb(null, true);
     }
 

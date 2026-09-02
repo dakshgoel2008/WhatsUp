@@ -11,6 +11,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import messageRoutes from "./routes/message.js";
 import { app, server } from "./utils/socket.js";
+import { apiLimiter, authLimiter } from "./middlewares/rateLimiter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +29,7 @@ app.use(
         crossOriginResourcePolicy: { policy: "cross-origin" },
         crossOriginEmbedderPolicy: false,
         crossOriginOpenerPolicy: { policy: "same-origin" },
-    })
+    }),
 );
 
 app.use(
@@ -40,7 +41,7 @@ app.use(
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:"],
         },
-    })
+    }),
 );
 
 // CORS Configuration - FIXED VERSION
@@ -94,11 +95,11 @@ app.use(
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
-    })
+    }),
 );
 
-app.use("/api/auth", authRoutes);
-app.use("/api/message", messageRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/message", apiLimiter, messageRoutes);
 
 if (isProduction) {
     const clientBuildPath = path.join(__dirname, "..", "..", "client", "dist");
@@ -118,9 +119,12 @@ if (!dbPath) {
     process.exit(1);
 }
 
+import { connectRedis } from "./utils/redisClient.js";
+
 mongoose
     .connect(dbPath)
-    .then(() => {
+    .then(async () => {
+        await connectRedis();
         server.listen(PORT, () => {
             console.log("✅ Server Started Successfully!");
             console.log(`   Mode: ${process.env.NODE_ENV || "development"}`);
@@ -133,3 +137,17 @@ mongoose
         console.error("❌ Database connection failed:", err);
         process.exit(1);
     });
+
+import "./workers/uploadWorker.js";
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error("Global Error:", err);
+    const statusCode = err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(statusCode).json({
+        success: false,
+        message: message,
+        errors: err.errors || [],
+    });
+});

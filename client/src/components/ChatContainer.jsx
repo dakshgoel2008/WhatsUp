@@ -195,6 +195,7 @@ const ChatContainer = memo(() => {
     const [mediaInModal, setMediaInModal] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const { user } = useUserAuthStore();
     const appearance = useUserAppearanceStore();
     const { chatBackground, density, animationsEnabled } = appearance;
@@ -241,6 +242,29 @@ const ChatContainer = memo(() => {
             });
         }
     }, [animationsEnabled]);
+
+    const handleScroll = useCallback(async (e) => {
+        const { scrollTop } = e.target;
+        if (scrollTop === 0 && !isLoadingMore && message.length > 0) {
+            setIsLoadingMore(true);
+            const oldestMessage = message[0];
+            
+            // Save current scroll height to adjust later
+            const container = messagesContainerRef.current;
+            const previousScrollHeight = container ? container.scrollHeight : 0;
+            
+            await getMessages(selectedUser._id, oldestMessage.createdAt);
+            
+            // Adjust scroll position so it doesn't jump to the top of new messages
+            if (container) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight - previousScrollHeight;
+                });
+            }
+            
+            setIsLoadingMore(false);
+        }
+    }, [isLoadingMore, message, getMessages, selectedUser?._id]);
 
     useEffect(() => {
         if (selectedUser?._id && getMessages) {
@@ -306,6 +330,7 @@ const ChatContainer = memo(() => {
             </div>
             <div
                 className={`flex-1 overflow-y-auto scroll-smooth ${background.value} ${densitySettings.spacing} ${densitySettings.padding}`}
+                onScroll={handleScroll}
                 style={
                     background.imageUrl
                         ? { backgroundImage: `url(${background.imageUrl})` }

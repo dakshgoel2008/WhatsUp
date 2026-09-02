@@ -13,6 +13,12 @@ cloudinary.config({
 
 const uploadOnCloudinary = (fileInput, options = {}) => {
     return new Promise((resolve, reject) => {
+        // Mock Cloudinary if dummy credentials are provided, useful for local testing
+        if (!process.env.CLOUDINARY_APIKEY || process.env.CLOUDINARY_APIKEY === "your_cloudinary_api_key") {
+            console.log("Mock Cloudinary upload for local testing (dummy credentials detected)");
+            return resolve({ secure_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}` });
+        }
+
         const isBuffer = Buffer.isBuffer(fileInput);
 
         const uploadOptions = {

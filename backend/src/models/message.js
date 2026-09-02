@@ -65,6 +65,10 @@ const messageSchema = new Schema(
     }
 );
 
+// Indexes for fast fetching of messages between two users and cursor pagination
+messageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
+messageSchema.index({ receiverId: 1, senderId: 1, createdAt: -1 });
+
 const Message = mongoose.model("Message", messageSchema);
 
 export default Message;

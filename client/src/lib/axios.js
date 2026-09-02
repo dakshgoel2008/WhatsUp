@@ -1,7 +1,8 @@
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL;
+let apiUrl = import.meta.env.VITE_API_BASE_URL;
+if (!apiUrl || apiUrl === "undefined") apiUrl = "";
 
 export const axiosInstance = axios.create({
     baseURL: `${apiUrl}/api`,

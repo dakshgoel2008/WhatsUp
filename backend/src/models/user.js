@@ -42,6 +42,9 @@ const userSchema = new Schema(
     }
 );
 
+// Text indexes for faster user searching
+userSchema.index({ username: 'text', name: 'text' });
+
 userSchema.pre("save", function (next) {
     if (!this.isModified("password")) return next();
     // if the password of the user is changed then only change the password else do nothing

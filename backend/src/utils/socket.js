@@ -1,6 +1,8 @@
 import { Server } from "socket.io";
 import http from "http";
 import express from "express";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { pubClient, subClient } from "./redisClient.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -45,6 +47,13 @@ const io = new Server(server, {
         credentials: true,
         methods: ["GET", "POST"],
     },
+});
+
+Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("Redis adapter configured for Socket.IO");
+}).catch(err => {
+    console.error("Failed to connect Redis pub/sub clients", err);
 });
 
 export function getReceiverSocketId(userId) {

@@ -12,11 +12,12 @@ import { verifyJWT } from "../middlewares/verifyJWT.js";
 import User from "../models/user.js";
 // import "../utils/passportConfig.js";
 // import passport from "passport";
+import { validate, signupSchema, loginSchema } from "../middlewares/validate.js";
 const router = express.Router();
 
 // JWT:
-router.post("/signup", upload.single("profileImage"), postSignUp);
-router.post("/login", postLogin);
+router.post("/signup", upload.single("profileImage"), validate(signupSchema), postSignUp);
+router.post("/login", validate(loginSchema), postLogin);
 router.post("/logout", postLogout);
 
 // Initiate Google OAuth

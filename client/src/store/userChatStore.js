@@ -25,16 +25,21 @@ export const useUserChatStore = create((set, get) => ({
         }
     },
 
-    getMessages: async (userId) => {
-        set({ isMessageLoading: true });
+    getMessages: async (userId, cursor = null) => {
+        if (!cursor) set({ isMessageLoading: true });
         try {
-            const res = await axiosInstance.get(`/message/${userId}`);
-            set({ message: res.data.message });
+            const url = cursor ? `/message/${userId}?cursor=${cursor}` : `/message/${userId}`;
+            const res = await axiosInstance.get(url);
+            if (cursor) {
+                set(state => ({ message: [...res.data.messages, ...state.message] }));
+            } else {
+                set({ message: res.data.messages });
+            }
         } catch (err) {
             console.error("Get messages error:", err);
             toast.error(err?.response?.data?.message || err?.message || "Get messages failed. Please try again.");
         } finally {
-            set({ isMessageLoading: false });
+            if (!cursor) set({ isMessageLoading: false });
         }
     },
 
