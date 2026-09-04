@@ -5,9 +5,27 @@ const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 // Track whether Redis is available
 export let redisAvailable = false;
 
-const redisClient = createClient({ url: redisUrl });
-export const pubClient = createClient({ url: redisUrl });
-export const subClient = createClient({ url: redisUrl });
+const redisClient = createClient({
+    url: redisUrl,
+    socket: {
+        connectTimeoutMs: 5000,
+        reconnectStrategy: false, // Don't auto-reconnect if initial connection fails
+    },
+});
+export const pubClient = createClient({
+    url: redisUrl,
+    socket: {
+        connectTimeoutMs: 5000,
+        reconnectStrategy: false,
+    },
+});
+export const subClient = createClient({
+    url: redisUrl,
+    socket: {
+        connectTimeoutMs: 5000,
+        reconnectStrategy: false,
+    },
+});
 
 redisClient.on("error", (err) => console.error("⚠️ Redis Client Error:", err.message));
 pubClient.on("error", (err) => console.error("⚠️ Redis Pub Client Error:", err.message));

@@ -5,15 +5,15 @@ import { redisAvailable } from "../utils/redisClient.js";
 let apiStore = undefined; // undefined = use default in-memory store
 let authStore = undefined;
 
-const setupRedisStores = async () => {
-    if (!redisAvailable) {
-        console.warn("⚠️ Rate limiter using in-memory store (no Redis)");
-        return;
-    }
+if (redisAvailable) {
     try {
         const { RedisStore } = await import("rate-limit-redis");
         const IORedis = (await import("ioredis")).default;
-        const redisClient = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+        const redisClient = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+            connectTimeout: 5000,
+            maxRetriesPerRequest: 1,
+            retryStrategy: () => null, // Don't retry
+        });
 
         apiStore = new RedisStore({
             sendCommand: (...args) => redisClient.call(...args),
@@ -28,10 +28,9 @@ const setupRedisStores = async () => {
         console.warn("⚠️ Failed to setup Redis rate limiter store:", err.message);
         console.warn("⚠️ Falling back to in-memory rate limiter");
     }
-};
-
-// Initialize stores (will be set up properly after Redis connects)
-await setupRedisStores();
+} else {
+    console.warn("⚠️ Rate limiter using in-memory store (no Redis)");
+}
 
 // General API rate limiting
 export const apiLimiter = rateLimit({
