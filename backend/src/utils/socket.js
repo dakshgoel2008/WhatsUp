@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import http from "http";
 import express from "express";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { pubClient, subClient } from "./redisClient.js";
+import { pubClient, subClient, redisAvailable } from "./redisClient.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -49,12 +49,21 @@ const io = new Server(server, {
     },
 });
 
-Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-    io.adapter(createAdapter(pubClient, subClient));
-    console.log("Redis adapter configured for Socket.IO");
-}).catch(err => {
-    console.error("Failed to connect Redis pub/sub clients", err);
-});
+// Setup Redis adapter for Socket.IO (only if Redis is available)
+export const setupSocketRedisAdapter = async () => {
+    if (!redisAvailable) {
+        console.warn("⚠️ Socket.IO running with in-memory adapter (no Redis)");
+        return;
+    }
+    try {
+        // pubClient and subClient are already connected by connectRedis()
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log("✅ Redis adapter configured for Socket.IO");
+    } catch (err) {
+        console.warn("⚠️ Failed to setup Redis adapter for Socket.IO:", err.message);
+        console.warn("⚠️ Falling back to in-memory adapter");
+    }
+};
 
 export function getReceiverSocketId(userId) {
     return userSocketMap[userId];

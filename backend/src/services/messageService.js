@@ -44,6 +44,9 @@ export const sendMessageService = async (senderId, receiverId, text, files) => {
                 folder = "chat-audio";
             }
 
+            if (!uploadQueue) {
+                throw new Error("File upload service is unavailable (Redis not connected). Please try again later.");
+            }
             await uploadQueue.add("upload-file", {
                 senderId,
                 receiverId,

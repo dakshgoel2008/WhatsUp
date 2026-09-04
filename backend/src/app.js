@@ -120,23 +120,47 @@ if (!dbPath) {
 }
 
 import { connectRedis } from "./utils/redisClient.js";
+import { setupSocketRedisAdapter } from "./utils/socket.js";
 
-mongoose
-    .connect(dbPath)
-    .then(async () => {
-        await connectRedis();
-        server.listen(PORT, () => {
-            console.log("✅ Server Started Successfully!");
-            console.log(`   Mode: ${process.env.NODE_ENV || "development"}`);
-            console.log(`   URL: http://localhost:${PORT}`);
+// MongoDB connection with retry logic
+const connectWithRetry = async (maxRetries = 5, initialDelay = 2000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`🔄 MongoDB connection attempt ${attempt}/${maxRetries}...`);
+            await mongoose.connect(dbPath);
+            console.log(`✅ MongoDB connected successfully`);
             console.log(`   Database: ${isProduction ? "Production" : "Development"}`);
-            console.log(`   Allowed Origins: ${allowedOrigins.join(", ")}`);
-        });
-    })
-    .catch((err) => {
-        console.error("❌ Database connection failed:", err);
-        process.exit(1);
-    });
+            return true;
+        } catch (err) {
+            console.error(`❌ MongoDB connection attempt ${attempt} failed:`, err.message);
+            if (attempt < maxRetries) {
+                const delay = initialDelay * Math.pow(2, attempt - 1);
+                console.log(`   Retrying in ${delay / 1000}s...`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+        }
+    }
+    console.error("❌ All MongoDB connection attempts failed. The app will stay alive but DB features won't work.");
+    console.error("   Please check your PRODUCTION_DB_PATH env var and MongoDB Atlas IP whitelist.");
+    return false;
+};
+
+// Start server FIRST so Render detects the port, then connect to services
+server.listen(PORT, async () => {
+    console.log("✅ Server Started Successfully!");
+    console.log(`   Mode: ${process.env.NODE_ENV || "development"}`);
+    console.log(`   URL: http://localhost:${PORT}`);
+    console.log(`   Allowed Origins: ${allowedOrigins.join(", ")}`);
+
+    // Connect to Redis (non-blocking)
+    await connectRedis();
+
+    // Setup Socket.IO Redis adapter after Redis is connected
+    await setupSocketRedisAdapter();
+
+    // Connect to MongoDB with retries
+    await connectWithRetry();
+});
 
 import "./workers/uploadWorker.js";
 
@@ -151,3 +175,4 @@ app.use((err, req, res, next) => {
         errors: err.errors || [],
     });
 });
+
